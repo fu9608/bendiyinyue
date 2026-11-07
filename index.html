@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08111f">
+  <title>局域网音乐播放器</title>
+  <style>
+    :root {
+      --bg: #07101d;
+      --panel: rgba(17, 34, 55, .78);
+      --panel-2: rgba(11, 25, 42, .82);
+      --line: rgba(148, 190, 224, .16);
+      --text: #edf6ff;
+      --muted: #8ca8c2;
+      --accent: #38d6b0;
+      --accent-soft: rgba(56, 214, 176, .14);
+      --blue: #6fb6ff;
+      --danger: #ff6b72;
+      --warning: #ffc35c;
+      --radius: 18px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .28);
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(1000px 520px at 12% -8%, rgba(56, 214, 176, .16), transparent 62%),
+        radial-gradient(900px 500px at 100% 0%, rgba(78, 133, 255, .14), transparent 58%),
+        var(--bg);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+    .app { width: min(1080px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 42px; position: relative; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 22px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 44px; height: 44px; border-radius: 15px;
+      display: grid; place-items: center;
+      background: linear-gradient(145deg, rgba(56,214,176,.28), rgba(56,214,176,.04));
+      border: 1px solid rgba(56,214,176,.36);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 10px 30px rgba(56,214,176,.12);
+      font-size: 22px;
+    }
+    .brand h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .header-note { color: var(--muted); font-size: 12px; text-align: right; line-height: 1.7; }
+    .header-note code { color: var(--accent); }
+    .hero {
+      position: relative; overflow: hidden;
+      padding: clamp(20px, 4vw, 34px);
+      border-radius: 28px; border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(21, 45, 70, .94), rgba(9, 22, 38, .88));
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: ""; position: absolute; width: 300px; height: 300px; right: -80px; top: -120px;
+      border-radius: 50%; background: radial-gradient(circle, rgba(56,214,176,.16), transparent 68%);
+      pointer-events: none;
+    }
+    .now-grid { display: grid; grid-template-columns: 138px minmax(0, 1fr); gap: clamp(18px, 3vw, 30px); align-items: center; }
+    .cover-frame {
+      position: relative; aspect-ratio: 1; border-radius: 22px; overflow: hidden;
+      border: 1px solid rgba(148,190,224,.2);
+      background: linear-gradient(145deg, rgba(56,214,176,.18), rgba(48,92,150,.12));
+      box-shadow: 0 18px 40px rgba(0,0,0,.25);
+    }
+    #cover { width: 100%; height: 100%; object-fit: cover; display: none; }
+    #coverFallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 48px; color: rgba(237,246,255,.55); }
+    .eyebrow { color: var(--accent); font-size: 11px; letter-spacing: .22em; font-weight: 700; }
+    .hero h2 { margin: 10px 0 6px; font-size: clamp(26px, 4.4vw, 44px); line-height: 1.08; letter-spacing: -.03em; overflow-wrap: anywhere; }
+    .hero .meta { margin: 0; color: var(--muted); font-size: 14px; min-height: 20px; overflow-wrap: anywhere; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 11px; border-radius: 999px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.035);
+      color: var(--muted); font-size: 12px; white-space: nowrap;
+    }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .8; }
+    .state-playing { color: var(--accent); border-color: rgba(56,214,176,.4); background: var(--accent-soft); }
+    .state-starting, .state-buffering { color: var(--warning); border-color: rgba(255,195,92,.35); background: rgba(255,195,92,.08); }
+    .state-error { color: var(--danger); border-color: rgba(255,107,114,.35); background: rgba(255,107,114,.08); }
+    .state-stopped { color: var(--muted); }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .btn {
+      appearance: none; border: 0; cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 18px; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 650;
+      transition: transform .15s ease, filter .15s ease, background .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn.primary { background: linear-gradient(135deg, #45e0b9, #22b998); color: #03251e; }
+    .btn.danger { background: rgba(255,107,114,.14); color: #ff9ca1; border: 1px solid rgba(255,107,114,.3); }
+    .btn.ghost { background: rgba(255,255,255,.055); color: var(--text); border: 1px solid var(--line); }
+    .volume-panel {
+      max-width: 520px; margin-top: 18px; padding: 14px 16px;
+      border-radius: 16px; border: 1px solid var(--line); background: rgba(7, 18, 32, .58);
+    }
+    .volume-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+    .volume-head output { color: var(--accent); font-size: 13px; font-weight: 700; }
+    .volume-row { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+    #volumeSlider { flex: 1; min-width: 0; height: 26px; accent-color: var(--accent); cursor: pointer; }
+    .volume-mute { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+    .error {
+      margin-top: 15px; padding: 12px 14px; border-radius: 12px;
+      color: #ffb4b7; background: rgba(255,107,114,.09); border: 1px solid rgba(255,107,114,.24);
+      font-size: 13px; line-height: 1.55; word-break: break-word;
+    }
+    .hidden { display: none !important; }
+    .search-panel, .results-panel, .help {
+      margin-top: 20px; padding: 20px; border-radius: var(--radius);
+      border: 1px solid var(--line); background: rgba(10, 22, 37, .72);
+    }
+    .section-head { display: flex; justify-content: space-between; gap: 14px; align-items: end; margin-bottom: 14px; }
+    .section-head h2, .results-head h2 { margin: 4px 0 0; font-size: 18px; }
+    .section-head small, .results-head span, .search-status { color: var(--muted); font-size: 12px; }
+    .search-form { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px auto; gap: 10px; }
+    .field {
+      width: 100%; padding: 13px 14px; border-radius: 12px;
+      border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+      font: inherit; outline: none;
+    }
+    .field:focus { border-color: rgba(56,214,176,.45); box-shadow: 0 0 0 3px rgba(56,214,176,.08); }
+    .search-status { margin-top: 10px; min-height: 18px; }
+    .results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; margin-bottom: 12px; }
+    .song-list { display: grid; gap: 8px; }
+    .song {
+      display: grid; grid-template-columns: 54px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+      padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line);
+      background: rgba(13, 29, 48, .72); transition: background .15s ease, border-color .15s ease;
+    }
+    .song:hover { background: rgba(22, 47, 74, .88); border-color: rgba(111,182,255,.3); }
+    .song.playing { border-color: rgba(56,214,176,.55); background: linear-gradient(135deg, rgba(56,214,176,.12), rgba(13,29,48,.8)); }
+    .song-cover {
+      width: 54px; height: 54px; border-radius: 10px; overflow: hidden; background: rgba(111,182,255,.09);
+      display: grid; place-items: center; color: var(--muted); font-size: 19px;
+    }
+    .song-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .song-main { min-width: 0; }
+    .song-title { display: block; font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-duration { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .source-pill { color: #9cc3e9; font-size: 10px; background: rgba(111,182,255,.08); border: 1px solid rgba(111,182,255,.13); padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
+    .play-btn { padding: 9px 13px; font-size: 12px; border-radius: 10px; }
+    .empty { padding: 22px 10px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .help h2 { margin: 0 0 10px; font-size: 15px; }
+    .help code { display: block; padding: 11px 13px; border-radius: 10px; background: #050c16; border: 1px solid var(--line); color: var(--accent); font-size: 13px; overflow-x: auto; white-space: nowrap; }
+    .help p { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    footer { padding: 28px 0 0; color: #627d96; font-size: 11px; text-align: center; }
+    #toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+      padding: 11px 16px; border-radius: 999px; background: #132c45; border: 1px solid var(--line);
+      color: var(--text); font-size: 13px; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+      transition: .2s ease; z-index: 20; max-width: calc(100vw - 32px); text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 760px) {
+      .app { width: min(100% - 20px, 1080px); padding-top: 18px; }
+      .header-note { display: none; }
+      .hero { border-radius: 22px; }
+      .now-grid { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
+      .cover-frame { border-radius: 16px; }
+      #coverFallback { font-size: 34px; }
+      .search-form { grid-template-columns: minmax(0, 1fr) 110px; }
+      .search-form .btn { grid-column: 1 / -1; }
+      .song { grid-template-columns: 46px minmax(0, 1fr) auto; }
+      .song-cover { width: 46px; height: 46px; }
+      .source-pill { display: none; }
+    }
+    @media (max-width: 430px) {
+      .now-grid { grid-template-columns: 78px minmax(0, 1fr); }
+      .hero h2 { font-size: 24px; }
+      .source-pill { display: none; }
+      .song { grid-template-columns: 42px minmax(0, 1fr) auto; }
+      .song-cover { width: 42px; height: 42px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">♫</div>
+        <div>
+          <h1>局域网音乐播放器</h1>
+          <p>手机搜索 · 电脑转码 · ESP32 播放</p>
+        </div>
+      </div>
+      <div class="header-note">
+        原始 PCM 流<br>
+        <code>/radio</code> · <code>/stream</code>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="now-grid">
+          <div class="cover-frame">
+            <img id="cover" alt="">
+            <div id="coverFallback">♫</div>
+          </div>
+          <div>
+            <div class="eyebrow">NOW PLAYING</div>
+            <h2 id="trackTitle">未选择歌曲</h2>
+            <p class="meta" id="trackMeta">在上方搜索歌名或歌手，然后点击播放</p>
+            <div class="badges">
+              <span id="stateBadge" class="badge state-stopped">已停止</span>
+              <span id="listenerBadge" class="badge">0 个播放连接</span>
+              <span id="formatBadge" class="badge">s16le · 44100 Hz · 单声道</span>
+            </div>
+            <div class="hero-actions">
+              <button class="btn danger" id="stopBtn" type="button" disabled>停止播放</button>
+              <button class="btn ghost" id="previewBtn" type="button" disabled>本机试听</button>
+              <button class="btn ghost" id="copyBtn" type="button">复制流地址</button>
+            </div>
+            <div class="volume-panel">
+              <div class="volume-head">
+                <span>ESP32 音量</span>
+                <output id="volumeValue" for="volumeSlider">{{ status.volume }} / {{ status.volume_max }}</output>
+              </div>
+              <div class="volume-row">
+                <input id="volumeSlider" type="range" min="0" max="{{ status.volume_max }}" step="1" value="{{ status.volume }}" aria-label="ESP32 音量">
+                <button class="btn ghost volume-mute" id="muteBtn" type="button">静音</button>
+              </div>
+            </div>
+            <div id="errorBox" class="error hidden"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-panel">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">SEARCH</span>
+            <h2>搜索音乐</h2>
+          </div>
+          <small>默认同时搜索酷我、网易云</small>
+        </div>
+        <form id="searchForm" class="search-form">
+          <input class="field" id="keyword" type="search" autocomplete="off" placeholder="歌名、歌手或专辑，例如：青花瓷" aria-label="搜索歌曲">
+          <select class="field" id="sourceSelect" aria-label="音乐源">
+            <option value="auto">自动选择音源</option>
+            {% for source in music_sources %}
+            <option value="{{ source.name }}">{{ source.display_name }}</option>
+            {% endfor %}
+          </select>
+          <select class="field" id="limitSelect" aria-label="结果数量">
+            <option value="10">10 首</option>
+            <option value="20" selected>20 首</option>
+            <option value="30">30 首</option>
+          </select>
+          <button class="btn primary" id="searchBtn" type="submit">搜索</button>
+        </form>
+        <div id="searchStatus" class="search-status">输入关键词后按回车或点击搜索。</div>
+      </section>
+
+      <section class="results-panel">
+        <div class="results-head">
+          <h2>搜索结果</h2>
+          <span id="resultCount"></span>
+        </div>
+        <div id="songList" class="song-list">
+          <div class="empty">还没有搜索结果。<br>搜索后点击歌曲右侧的“播放”即可让电脑开始转码，ESP32 会自动播放新的 PCM 流。</div>
+        </div>
+      </section>
+
+      <section class="help">
+        <h2>ESP32 播放地址</h2>
+        <code id="streamUrl">{{ radio_url }}</code>
+        <p>格式：s16le / 44100 Hz / 单声道。点播新歌会立即终止旧 ffmpeg、清空旧缓冲并从头播放新歌。预缓冲约 {{ prebuffer_seconds }} 秒，可通过 RADIO_PREBUFFER_BYTES 调整。</p>
+        <p>手机、电脑和 ESP32 必须处于同一局域网。本项目只用于内网个人收听，音频版权归原权利方所有。</p>
+      </section>
+    </main>
+
+    <footer>公共音乐接口可能变动；若某首歌无法播放，换一个音源或结果重试。</footer>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script>
+
+(() => {
+  'use strict';
+
+  const el = {
+    searchForm: document.getElementById('searchForm'),
+    keyword: document.getElementById('keyword'),
+    sourceSelect: document.getElementById('sourceSelect'),
+    limitSelect: document.getElementById('limitSelect'),
+    searchBtn: document.getElementById('searchBtn'),
+    searchStatus: document.getElementById('searchStatus'),
+    songList: document.getElementById('songList'),
+    resultCount: document.getElementById('resultCount'),
+    trackTitle: document.getElementById('trackTitle'),
+    trackMeta: document.getElementById('trackMeta'),
+    cover: document.getElementById('cover'),
+    coverFallback: document.getElementById('coverFallback'),
+    stateBadge: document.getElementById('stateBadge'),
+    listenerBadge: document.getElementById('listenerBadge'),
+    formatBadge: document.getElementById('formatBadge'),
+    stopBtn: document.getElementById('stopBtn'),
+    previewBtn: document.getElementById('previewBtn'),
+    copyBtn: document.getElementById('copyBtn'),
+    errorBox: document.getElementById('errorBox'),
+    volumeSlider: document.getElementById('volumeSlider'),
+    volumeValue: document.getElementById('volumeValue'),
+    muteBtn: document.getElementById('muteBtn'),
+    streamUrl: document.getElementById('streamUrl'),
+    toast: document.getElementById('toast'),
+  };
+
+  const STATE_LABELS = {
+    stopped: '已停止',
+    starting: '正在启动',
+    buffering: '缓冲中',
+    playing: '正在播放',
+    error: '播放失败',
+  };
+  const SAMPLE_RATE = 44100;
+  const preview = {
+    active: false,
+    ctx: null,
+    controller: null,
+    nextTime: 0,
+    sources: new Set(),
+  };
+
+  let searchController = null;
+  let volumeTimer = null;
+  let toastTimer = null;
+  let statusTimer = null;
+  let volumeDirtyUntil = 0;
+  let restoreVolume = Math.max(1, Number(el.volumeSlider.value) || 15);
+  let currentKey = '';
+  let errorKind = '';
+
+  function showToast(message, timeout = 2800) {
+    if (!message) return;
+    el.toast.textContent = message;
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.toast.classList.remove('show'), timeout);
+  }
+
+  function showError(message, kind = 'general') {
+    if (!message) {
+      clearError(kind);
+      return;
+    }
+    errorKind = kind;
+    el.errorBox.textContent = String(message);
+    el.errorBox.classList.remove('hidden');
+  }
+
+  function clearError(kind) {
+    if (kind && errorKind && errorKind !== kind) return;
+    if (kind && !errorKind) return;
+    errorKind = '';
+    el.errorBox.textContent = '';
+    el.errorBox.classList.add('hidden');
+  }
+
+  function formatDuration(seconds) {
+    const total = Math.max(0, Math.round(Number(seconds) || 0));
+    if (!total) return '';
+    const minutes = Math.floor(total / 60);
+    const rest = total % 60;
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
+  }
+
+  function coverUrl(value) {
+    const url = String(value || '').trim();
+    if (!url) return '';
+    if (url.startsWith('//')) return `https:${url}`;
+    if (/^https?:\/\//i.test(url)) return url;
+    return '';
+  }
+
+  function makeEmpty(text) {
+    const node = document.createElement('div');
+    node.className = 'empty';
+    node.textContent = text;
+    return node;
+  }
+
+  async function requestJson(url, options = {}) {
+    const headers = new Headers(options.headers || {});
+    headers.set('Accept', 'application/json');
+    const response = await fetch(url, { cache: 'no-store', ...options, headers });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = null;
+    }
+    if (!response.ok || (data && data.ok === false)) {
+      const message =
+        (data && (data.error || data.last_error)) ||
+        `请求失败（HTTP ${response.status}）`;
+      throw new Error(message);
+    }
+    return data || {};
+  }
+
+  function updateCover(value) {
+    const src = coverUrl(value);
+    if (!src) {
+      el.cover.style.display = 'none';
+      el.coverFallback.style.display = 'grid';
+      el.cover.removeAttribute('src');
+      return;
+    }
+    if (el.cover.getAttribute('src') === src) return;
+    el.cover.onload = () => {
+      el.cover.style.display = 'block';
+      el.coverFallback.style.display = 'none';
+    };
+    el.cover.onerror = () => {
+      el.cover.style.display = 'none';
+      el.coverFallback.style.display = 'grid';
+    };
+    el.cover.src = src;
+  }
+
+  function markCurrent(key, title, artist) {
+    const wantedTitle = String(title || '').trim();
+    const wantedArtist = String(artist || '').trim();
+    el.songList.querySelectorAll('.song').forEach((row) => {
+      let match = false;
+      if (key) {
+        match = row.dataset.key === key;
+      } else if (wantedTitle) {
+        match =
+          row.dataset.title === wantedTitle &&
+          (!wantedArtist || row.dataset.artist === wantedArtist);
+      }
+      row.classList.toggle('playing', match);
+    });
+  }
+
+  function applyStatus(status) {
+    if (!status) return;
+    const state = status.state || (status.playing ? 'playing' : 'stopped');
+    const playing = Boolean(status.playing);
+
+    el.stateBadge.className = `badge state-${state}`;
+    el.stateBadge.textContent = STATE_LABELS[state] || state;
+    el.listenerBadge.textContent = `${Number(status.listeners) || 0} 个播放连接`;
+    const channels = Number(status.channels) === 1 ? '单声道' : '立体声';
+    el.formatBadge.textContent = `${status.format || 's16le'} · ${status.sample_rate || SAMPLE_RATE} Hz · ${channels}`;
+    el.stopBtn.disabled = !playing;
+    el.previewBtn.disabled = !playing;
+    if (!playing && preview.active) stopPreview(false);
+
+    if (status.title) {
+      el.trackTitle.textContent = status.title;
+      const meta = [status.artist, status.album, status.song_source_name]
+        .filter(Boolean)
+        .join(' · ');
+      el.trackMeta.textContent = meta || '正在播放';
+    } else {
+      el.trackTitle.textContent = '未选择歌曲';
+      el.trackMeta.textContent = '在上方搜索歌名或歌手，然后点击播放';
+    }
+    updateCover(status.cover || '');
+
+    if (typeof status.volume === 'number') {
+      if (status.volume > 0) restoreVolume = status.volume;
+      if (Date.now() > volumeDirtyUntil && document.activeElement !== el.volumeSlider) {
+        el.volumeSlider.value = String(status.volume);
+        el.volumeValue.textContent = `${status.volume} / ${status.volume_max || el.volumeSlider.max}`;
+      }
+      el.muteBtn.textContent = status.volume === 0 ? '恢复音量' : '静音';
+    }
+
+    if (status.last_error) {
+      showError(status.last_error, 'playback');
+    } else if (state !== 'error') {
+      clearError('playback');
+    }
+
+    if (status.song_source && status.song_id) {
+      currentKey = `${status.song_source}:${status.song_id}`;
+    }
+    markCurrent(currentKey, status.title, status.artist);
+  }
+
+  async function refreshStatus(showFailure = false) {
+    try {
+      const data = await requestJson('/status');
+      applyStatus(data);
+      return data;
+    } catch (error) {
+      if (showFailure) showError(`读取状态失败：${error.message || error}`, 'playback');
+      return null;
+    }
+  }
+
+  function buildSongRow(song) {
+    const row = document.createElement('div');
+    row.className = 'song';
+    row.dataset.key = song.key || `${song.source || ''}:${song.song_id || ''}`;
+    row.dataset.title = song.title || '';
+    row.dataset.artist = song.artist || '';
+    row.title = [song.title, song.artist].filter(Boolean).join(' - ');
+
+    const cover = document.createElement('div');
+    cover.className = 'song-cover';
+    const src = coverUrl(song.cover);
+    if (src) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.src = src;
+      img.addEventListener('error', () => {
+        img.remove();
+        cover.textContent = '♫';
+      });
+      cover.appendChild(img);
+    } else {
+      cover.textContent = '♫';
+    }
+
+    const main = document.createElement('div');
+    main.className = 'song-main';
+    const title = document.createElement('span');
+    title.className = 'song-title';
+    title.textContent = song.title || '未知歌曲';
+    const sub = document.createElement('span');
+    sub.className = 'song-sub';
+    sub.textContent = [
+      song.artist || '未知歌手',
+      song.album,
+      formatDuration(song.duration),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    main.appendChild(title);
+    main.appendChild(sub);
+
+    const source = document.createElement('span');
+    source.className = 'source-pill';
+    source.textContent = song.source_name || song.source || '音乐';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn primary play-btn';
+    const playable = song.playable !== false && Boolean(song.song_id || song.url);
+    button.textContent = playable ? '播放' : '不可用';
+    button.disabled = !playable;
+    if (playable) {
+      button.addEventListener('click', () => playSong(song, button));
+    }
+
+    row.appendChild(cover);
+    row.appendChild(main);
+    row.appendChild(source);
+    row.appendChild(button);
+    return row;
+  }
+
+  function renderSongs(songs) {
+    el.resultCount.textContent = `${songs.length} 首`;
+    if (!songs.length) {
+      el.songList.replaceChildren(makeEmpty('没有找到歌曲，换个关键词或音源试试。'));
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    songs.forEach((song) => fragment.appendChild(buildSongRow(song)));
+    el.songList.replaceChildren(fragment);
+    markCurrent(currentKey, el.trackTitle.textContent, '');
+  }
+
+  async function playSong(song, button) {
+    if (!song) return;
+    const originalText = button ? button.textContent : '';
+    if (button) {
+      button.disabled = true;
+      button.textContent = '启动中';
+    }
+    clearError('playback');
+
+    const songId = String(song.song_id || '');
+    const payload = {
+      source: song.source || '',
+      song_id: songId,
+      album_id: String((song.extra && song.extra.album_id) || ''),
+      title: song.title || '',
+      artist: song.artist || '',
+      album: song.album || '',
+      cover: song.cover || '',
+      source_name: song.source_name || '',
+    };
+
+    try {
+      let status;
+      try {
+        status = await requestJson('/play_song', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        if (!song.url) throw error;
+        const params = new URLSearchParams({
+          url: song.url,
+          title: song.title || '',
+          artist: song.artist || '',
+          album: song.album || '',
+          cover: song.cover || '',
+          source: song.source || '',
+          source_name: song.source_name || '',
+          song_id: songId,
+          referer: song.referer || '',
+        });
+        status = await requestJson(`/play?${params.toString()}`, { method: 'POST' });
+      }
+      currentKey = song.key || `${song.source || ''}:${songId}`;
+      applyStatus(status);
+      markCurrent(currentKey, song.title, song.artist);
+      showToast(`正在播放：${song.title || '网络音乐'}`);
+    } catch (error) {
+      showError(error.message || String(error), 'playback');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText || '播放';
+      }
+    }
+  }
+
+  async function runSearch(event) {
+    if (event) event.preventDefault();
+    const keyword = el.keyword.value.trim();
+    if (!keyword) {
+      el.keyword.focus();
+      showToast('请输入歌名、歌手或专辑');
+      return;
+    }
+
+    if (searchController) searchController.abort();
+    searchController = new AbortController();
+    const controller = searchController;
+    clearError('general');
+
+    el.searchBtn.disabled = true;
+    el.searchBtn.textContent = '搜索中';
+    el.searchStatus.textContent = '正在请求音乐源…';
+    el.resultCount.textContent = '';
+    el.songList.replaceChildren(makeEmpty('正在搜索，请稍候…'));
+
+    const params = new URLSearchParams({
+      keyword,
+      source: el.sourceSelect.value || 'auto',
+      limit: el.limitSelect.value || '20',
+    });
+
+    try {
+      const data = await requestJson(`/search?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      const songs = Array.isArray(data.songs) ? data.songs : [];
+      renderSongs(songs);
+      const playable = songs.filter(
+        (song) => song.playable !== false && Boolean(song.song_id || song.url)
+      ).length;
+      let message = `找到 ${songs.length} 首，其中 ${playable} 首可播放`;
+      if (data.took_ms) message += ` · ${data.took_ms} ms`;
+      if (Array.isArray(data.errors) && data.errors.length) {
+        const names = data.errors.map((item) => item.source).filter(Boolean).join('、');
+        message += ` · 失败音源：${names || data.errors.length}`;
+      }
+      if (data.resolve_errors) message += ` · ${data.resolve_errors} 首解析失败`;
+      el.searchStatus.textContent = message;
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      el.searchStatus.textContent = '搜索失败';
+      el.songList.replaceChildren(makeEmpty('搜索失败，请稍后重试或切换音源。'));
+      showError(error.message || String(error), 'general');
+    } finally {
+      if (searchController === controller) searchController = null;
+      el.searchBtn.disabled = false;
+      el.searchBtn.textContent = '搜索';
+    }
+  }
+
+  async function pushVolume(value) {
+    const max = Number(el.volumeSlider.max) || 21;
+    const volume = Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
+    el.volumeSlider.value = String(volume);
+    el.volumeValue.textContent = `${volume} / ${max}`;
+    el.muteBtn.textContent = volume === 0 ? '恢复音量' : '静音';
+    volumeDirtyUntil = Date.now() + 900;
+    try {
+      const data = await requestJson(`/volume/${volume}`);
+      if (volume > 0) restoreVolume = volume;
+      if (typeof data.volume === 'number') {
+        volumeDirtyUntil = Date.now() + 500;
+      }
+      applyStatus(data);
+    } catch (error) {
+      showError(`音量设置失败：${error.message || error}`, 'playback');
+    }
+  }
+
+  function scheduleVolume() {
+    const volume = Number(el.volumeSlider.value) || 0;
+    el.volumeValue.textContent = `${volume} / ${el.volumeSlider.max}`;
+    el.muteBtn.textContent = volume === 0 ? '恢复音量' : '静音';
+    volumeDirtyUntil = Date.now() + 1200;
+    clearTimeout(volumeTimer);
+    volumeTimer = setTimeout(() => pushVolume(volume), 180);
+  }
+
+  async function toggleMute() {
+    const current = Number(el.volumeSlider.value) || 0;
+    clearTimeout(volumeTimer);
+    if (current > 0) {
+      restoreVolume = current;
+      await pushVolume(0);
+    } else {
+      await pushVolume(restoreVolume > 0 ? restoreVolume : 15);
+    }
+  }
+
+  async function stopPlayback() {
+    clearTimeout(volumeTimer);
+    clearError('playback');
+    try {
+      await requestJson('/stop?format=json');
+      stopPreview(false);
+      await refreshStatus(false);
+      showToast('已停止播放');
+    } catch (error) {
+      showError(error.message || String(error), 'playback');
+    }
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try {
+      document.execCommand('copy');
+    } finally {
+      area.remove();
+    }
+  }
+
+  async function copyStreamUrl() {
+    const text = (el.streamUrl.textContent || '').trim();
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        fallbackCopy(text);
+      }
+      showToast('播放地址已复制');
+    } catch (_) {
+      fallbackCopy(text);
+      showToast('播放地址已复制');
+    }
+  }
+
+  function enqueuePcm(bytes) {
+    const ctx = preview.ctx;
+    if (!ctx || !preview.active || bytes.length < 2) return;
+    const frames = Math.floor(bytes.length / 2);
+    if (!frames) return;
+
+    const buffer = ctx.createBuffer(1, frames, SAMPLE_RATE);
+    const output = buffer.getChannelData(0);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    for (let i = 0; i < frames; i += 1) {
+      output[i] = view.getInt16(i * 2, true) / 32768;
+    }
+
+    const now = ctx.currentTime;
+    if (preview.nextTime < now + 0.03) preview.nextTime = now + 0.08;
+    if (preview.nextTime - now > 2.5) {
+      preview.sources.forEach((source) => {
+        try { source.stop(); } catch (_) { /* already stopped */ }
+      });
+      preview.sources.clear();
+      preview.nextTime = now + 0.08;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(preview.nextTime);
+    preview.nextTime += buffer.duration;
+    preview.sources.add(source);
+    source.onended = () => preview.sources.delete(source);
+  }
+
+  async function readPreviewStream(controller) {
+    const response = await fetch('/radio', { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error(`PCM 流不可用（HTTP ${response.status}）`);
+    if (!response.body) throw new Error('当前浏览器不支持流式读取');
+    const reader = response.body.getReader();
+    let carry = new Uint8Array(0);
+
+    while (preview.active) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (!value || !value.length) continue;
+
+      let merged;
+      if (carry.length) {
+        merged = new Uint8Array(carry.length + value.length);
+        merged.set(carry, 0);
+        merged.set(value, carry.length);
+      } else {
+        merged = value;
+      }
+      const usable = merged.length - (merged.length % 2);
+      if (usable > 0) {
+        enqueuePcm(usable === merged.length ? merged : merged.subarray(0, usable));
+      }
+      carry = usable < merged.length ? merged.slice(usable) : new Uint8Array(0);
+    }
+  }
+
+  function stopPreview(notify = true) {
+    const wasActive = preview.active || Boolean(preview.ctx);
+    preview.active = false;
+    if (preview.controller) {
+      try { preview.controller.abort(); } catch (_) { /* ignore */ }
+      preview.controller = null;
+    }
+    preview.sources.forEach((source) => {
+      try { source.stop(); } catch (_) { /* ignore */ }
+    });
+    preview.sources.clear();
+    const ctx = preview.ctx;
+    preview.ctx = null;
+    if (ctx) ctx.close().catch(() => {});
+    el.previewBtn.textContent = '本机试听';
+    el.previewBtn.setAttribute('aria-pressed', 'false');
+    if (notify && wasActive) showToast('已停止本机试听');
+  }
+
+  async function startPreview() {
+    if (preview.active) {
+      stopPreview(true);
+      return;
+    }
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
+      showError('当前浏览器不支持 Web Audio，无法本机试听。', 'playback');
+      return;
+    }
+
+    let ctx;
+    try {
+      ctx = new AudioCtx({ sampleRate: SAMPLE_RATE });
+    } catch (_) {
+      ctx = new AudioCtx();
+    }
+    try {
+      await ctx.resume();
+    } catch (_) {
+      /* 允许用户再次点击 */
+    }
+
+    preview.ctx = ctx;
+    preview.active = true;
+    preview.nextTime = ctx.currentTime + 0.12;
+    preview.sources.clear();
+    el.previewBtn.textContent = '停止试听';
+    el.previewBtn.setAttribute('aria-pressed', 'true');
+
+    const controller = new AbortController();
+    preview.controller = controller;
+    readPreviewStream(controller)
+      .catch((error) => {
+        if (error && error.name === 'AbortError') return;
+        if (preview.active) {
+          showError(`本机试听中断：${error.message || error}`, 'playback');
+        }
+      })
+      .finally(() => {
+        if (preview.active) stopPreview(false);
+      });
+  }
+
+  el.searchForm.addEventListener('submit', runSearch);
+  el.stopBtn.addEventListener('click', stopPlayback);
+  el.previewBtn.addEventListener('click', startPreview);
+  el.copyBtn.addEventListener('click', copyStreamUrl);
+  el.muteBtn.addEventListener('click', toggleMute);
+  el.volumeSlider.addEventListener('input', scheduleVolume);
+  el.volumeSlider.addEventListener('change', () => {
+    clearTimeout(volumeTimer);
+    pushVolume(el.volumeSlider.value);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshStatus(false);
+  });
+
+  const initialVolume = Number(el.volumeSlider.value);
+  if (Number.isFinite(initialVolume) && initialVolume > 0) restoreVolume = initialVolume;
+  refreshStatus(false);
+  statusTimer = setInterval(() => {
+    if (!document.hidden) refreshStatus(false);
+  }, 2500);
+})();
+</script>
+</body>
+</html>

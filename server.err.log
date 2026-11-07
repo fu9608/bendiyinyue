@@ -1,0 +1,53 @@
+21:21:51 INFO music-player: ffmpeg: C:\Users\ZhuanZ1\Desktop\guangbo\ffmpeg.exe
+21:21:51 INFO music-player: audio: s16le 44100 Hz 1 channel(s), prebuffer 176400 bytes (2.00s)
+21:21:51 INFO music-player: music sources: kuwo, netease
+21:21:51 INFO music-player: control panel: http://10.22.69.20:5000/   PCM stream: http://10.22.69.20:5000/radio (alias /stream)
+21:21:51 INFO music-player: control panel: http://172.18.0.1:5000/   PCM stream: http://172.18.0.1:5000/radio (alias /stream)
+21:21:51 INFO werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.18.0.1:5000
+21:21:51 INFO werkzeug: [33mPress CTRL+C to quit[0m
+21:22:06 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:06] "[31m[1mGET /search?keyword= HTTP/1.1[0m" 400 -
+21:22:07 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:07] "[31m[1mGET /search?keyword=test&limit=abc HTTP/1.1[0m" 400 -
+21:22:08 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:08] "[31m[1mGET /play?url=file://test HTTP/1.1[0m" 400 -
+21:22:08 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:08] "[31m[1mGET /play?url=http://127.0.0.1:5000/radio HTTP/1.1[0m" 400 -
+21:22:09 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:09] "GET / HTTP/1.1" 200 -
+21:22:44 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:44] "GET /search?keyword=青花瓷&limit=3 HTTP/1.1" 200 -
+21:22:48 INFO music-player: ffmpeg started for 青花瓷（DJ版） - DJRE (generation 2, pid 39188)
+21:22:48 INFO music-player: track selected: 青花瓷（DJ版） - DJRE
+21:22:48 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:48] "POST /play_song HTTP/1.1" 200 -
+21:22:51 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:51] "GET /status HTTP/1.1" 200 -
+21:22:59 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:22:59] "GET /radio HTTP/1.1" 200 -
+21:23:18 INFO music-player: ffmpeg started for 青花瓷 - 刘芳 (generation 4, pid 25812)
+21:23:18 INFO music-player: track selected: 青花瓷 - 刘芳
+21:23:18 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:23:18] "POST /play_song HTTP/1.1" 200 -
+21:23:22 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:23:22] "GET /status HTTP/1.1" 200 -
+21:26:32 INFO music-player: playback stopped
+21:26:32 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:32] "GET /stop?format=json HTTP/1.1" 200 -
+21:26:32 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:32] "[35m[1mGET /radio HTTP/1.1[0m" 503 -
+21:26:37 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:37] "GET /volume HTTP/1.1" 200 -
+21:26:37 INFO music-player: ESP32 volume set to 12
+21:26:37 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:37] "[32mGET /volume/12 HTTP/1.1[0m" 302 -
+21:26:37 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:37] "GET / HTTP/1.1" 200 -
+21:26:37 INFO music-player: ESP32 volume set to 13
+21:26:37 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:37] "GET /vol_up HTTP/1.1" 200 -
+21:26:37 INFO music-player: ESP32 volume set to 12
+21:26:37 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:37] "GET /vol_down HTTP/1.1" 200 -
+21:26:37 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:37] "GET / HTTP/1.1" 200 -
+21:26:49 INFO music-player: ESP32 volume set to 12
+21:26:49 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:49] "GET /volume/12?format=json HTTP/1.1" 200 -
+21:26:49 INFO music-player: ESP32 volume set to 15
+21:26:49 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:49] "GET /volume/15?format=json HTTP/1.1" 200 -
+21:26:49 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:49] "GET / HTTP/1.1" 200 -
+21:26:50 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:50] "GET /search?keyword=夜曲&limit=1&source=kuwo HTTP/1.1" 200 -
+21:26:50 INFO music-player: ffmpeg started for 夜曲 - 周杰伦 (generation 7, pid 24428)
+21:26:50 INFO music-player: track selected: 夜曲 - 周杰伦
+21:26:50 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:50] "POST /play HTTP/1.1" 200 -
+21:26:54 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:26:54] "GET /status HTTP/1.1" 200 -
+21:27:07 INFO werkzeug: 10.22.69.20 - - [26/Oct/2026 21:27:07] "GET /healthz HTTP/1.1" 200 -
+21:27:08 INFO werkzeug: 10.22.69.20 - - [26/Oct/2026 21:27:08] "GET /status HTTP/1.1" 200 -
+21:27:13 INFO music-player: track finished
+21:27:31 INFO music-player: playback stopped
+21:27:31 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:27:31] "GET /stop?format=json HTTP/1.1" 200 -
+21:27:56 INFO werkzeug: 127.0.0.1 - - [26/Oct/2026 21:27:56] "GET /status HTTP/1.1" 200 -
